@@ -69,6 +69,7 @@ public enum Trasher {
             return result
         }
         var needAdmin: [URL] = []
+        var denied: Set<URL> = []
         for item in items {
             if item.url.path.hasPrefix("/System/") || item.url.lastPathComponent.lowercased().hasPrefix("com.apple.") {
                 result.failed.append((item.url, "Protected item"))
@@ -79,20 +80,39 @@ public enum Trasher {
                 try fileManager.trashItem(at: item.url, resultingItemURL: nil)
                 result.trashed.append(item.url)
             } catch {
-                let ns = error as NSError
-                let denied = (ns.domain == NSCocoaErrorDomain
-                              && (ns.code == NSFileWriteNoPermissionError || ns.code == NSFileReadNoPermissionError))
-                    || (ns.domain == NSPOSIXErrorDomain && (ns.code == Int(EPERM) || ns.code == Int(EACCES)))
-                if denied {
-                    result.permissionDenied = true
+                if isPermissionError(error) {
+                    denied.insert(item.url)
                     needAdmin.append(item.url)
                 } else {
                     result.failed.append((item.url, error.localizedDescription))
                 }
             }
         }
-        if !needAdmin.isEmpty { trashWithAdmin(needAdmin, into: &result) }
+        if !needAdmin.isEmpty {
+            let outcome = trashWithAdmin(needAdmin, fileManager: fileManager)
+            result.trashed.append(contentsOf: outcome.moved)
+            result.failed.append(contentsOf: outcome.failed)
+            // Only suggest Full Disk Access when a permission problem actually left items behind.
+            // Root is still subject to privacy protection, so "Operation not permitted" means TCC blocked it.
+            result.permissionDenied = outcome.failed.contains { url, message in
+                denied.contains(url) || message.localizedCaseInsensitiveContains("not permitted")
+            } && !outcome.cancelled
+        }
         return result
+    }
+
+    static func isPermissionError(_ error: Error) -> Bool {
+        let ns = error as NSError
+        if ns.domain == NSCocoaErrorDomain
+            && (ns.code == NSFileWriteNoPermissionError || ns.code == NSFileReadNoPermissionError) { return true }
+        if ns.domain == NSPOSIXErrorDomain && (ns.code == Int(EPERM) || ns.code == Int(EACCES)) { return true }
+        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? Error { return isPermissionError(underlying) }
+        return false
+    }
+
+    static func exists(_ url: URL, fileManager: FileManager) -> Bool {
+        // lstat semantics, so a dangling symlink still counts as present.
+        (try? fileManager.attributesOfItem(atPath: url.path)) != nil
     }
 
     static func escape(_ s: String) -> String {
@@ -100,24 +120,31 @@ public enum Trasher {
     }
 
     /// Moves files into the current user's ~/.Trash with administrator privileges.
-    static func trashWithAdmin(_ urls: [URL], into result: inout TrashResult) {
-        let trash = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash").path
+    /// Attempts every move, then reports per item by checking what is still on disk,
+    /// since one failing `mv` must not hide or mask the outcome of the others.
+    static func trashWithAdmin(_ urls: [URL], fileManager: FileManager = .default)
+        -> (moved: [URL], failed: [(URL, String)], cancelled: Bool) {
+        let trash = fileManager.homeDirectoryForCurrentUser.appendingPathComponent(".Trash").path
         let stamp = Int(Date().timeIntervalSince1970)
         let user = NSUserName()
-        var cmds: [String] = []
+        var cmds: [String] = ["rc=0"]
         for (i, url) in urls.enumerated() {
             let dest = "\(trash)/\(url.lastPathComponent) \(stamp)-\(i)"
-            cmds.append("/bin/mv \(shellQuote(url.path)) \(shellQuote(dest)) && /usr/sbin/chown -R \(shellQuote(user)) \(shellQuote(dest))")
+            cmds.append("{ /bin/mv \(shellQuote(url.path)) \(shellQuote(dest)) && /usr/sbin/chown -R \(shellQuote(user)) \(shellQuote(dest)); } || rc=1")
         }
+        cmds.append("exit $rc")
         let script = "do shell script \"\(escape(cmds.joined(separator: "; ")))\" with administrator privileges"
         var error: NSDictionary?
         _ = NSAppleScript(source: script)?.executeAndReturnError(&error)
-        if let error = error {
-            let msg = (error[NSAppleScript.errorMessage] as? String) ?? "Administrator action failed"
-            for u in urls { result.failed.append((u, msg)) }
-        } else {
-            result.trashed.append(contentsOf: urls)
+        let cancelled = (error?[NSAppleScript.errorNumber] as? Int) == -128
+        let message = cancelled ? "Administrator authorization cancelled"
+            : (error?[NSAppleScript.errorMessage] as? String) ?? "Administrator action failed"
+        var moved: [URL] = []
+        var failed: [(URL, String)] = []
+        for url in urls {
+            if exists(url, fileManager: fileManager) { failed.append((url, message)) } else { moved.append(url) }
         }
+        return (moved, failed, cancelled)
     }
 
     static func shellQuote(_ s: String) -> String {

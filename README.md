@@ -47,7 +47,9 @@ Requires Xcode 15+. `make dmg` produces `dist/AppSweeper-<version>.dmg` and a `.
 
 ### Permissions
 
-For app data protected by macOS (Containers, Group Containers, Cookies, etc.), grant AppSweeper **Full Disk Access** in System Settings › Privacy & Security. AppSweeper shows this guidance when a removal is blocked. Items in `/Library` ask for your administrator password.
+For app data protected by macOS (Containers, Group Containers, Cookies, etc.), grant AppSweeper **Full Disk Access** in System Settings › Privacy & Security, then quit and reopen AppSweeper. AppSweeper shows this guidance when a removal is blocked. Items in `/Library` ask for your administrator password.
+
+Release builds are ad-hoc signed, so macOS ties Full Disk Access to the exact build. After installing a new version, the switch may still look enabled but no longer apply: remove AppSweeper from the list (−), add it again, and relaunch. Alternatively, run `tccutil reset SystemPolicyAllFiles dev.appsweeper.AppSweeper` and grant access again.
 
 ## Quick start (development)
 

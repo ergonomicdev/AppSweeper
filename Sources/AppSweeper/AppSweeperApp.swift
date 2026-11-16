@@ -108,7 +108,7 @@ final class ViewModel: ObservableObject {
                 message = "Moved \(result.trashed.count) item(s); \(result.failed.count) failed: "
                     + result.failed.prefix(3).map { "\($0.0.lastPathComponent) (\($0.1))" }.joined(separator: ", ")
             }
-            if result.permissionDenied || !result.failed.isEmpty { showFullDiskHelp = true }
+            if result.permissionDenied { showFullDiskHelp = true }
         }
     }
 }
@@ -148,7 +148,7 @@ struct ContentView: View {
             }
             Button("OK", role: .cancel) {}
         } message: {
-            Text("Some items could not be removed. Grant AppSweeper (or Terminal) Full Disk Access in System Settings › Privacy & Security, then scan again. System-wide files require an administrator password.")
+            Text("macOS blocked removing some items. Grant AppSweeper Full Disk Access in System Settings › Privacy & Security, then quit and reopen AppSweeper. If it's already enabled, remove AppSweeper from the list (−) and add it again: macOS ties the permission to the exact build, so it stops applying after an update.")
         }
     }
 
