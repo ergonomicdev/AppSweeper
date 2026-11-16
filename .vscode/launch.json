@@ -1,0 +1,44 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "name": "Debug AppSweeper",
+      "target": "AppSweeper",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug AppSweeper"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "name": "Release AppSweeper",
+      "target": "AppSweeper",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release AppSweeper"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "name": "Debug appsweeper-scan",
+      "target": "appsweeper-scan",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug appsweeper-scan"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "name": "Release appsweeper-scan",
+      "target": "appsweeper-scan",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release appsweeper-scan"
+    }
+  ]
+}

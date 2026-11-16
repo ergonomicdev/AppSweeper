@@ -1,0 +1,62 @@
+name: AppSweeper
+options:
+  bundleIdPrefix: dev.appsweeper
+  deploymentTarget:
+    macOS: "13.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+targets:
+  AppSweeperCore:
+    type: library.static
+    platform: macOS
+    sources: [Sources/AppSweeperCore]
+  AppSweeper:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/AppSweeper
+        excludes: ["Resources/**"]
+      - path: Assets/AppIcon.icns
+    dependencies:
+      - target: AppSweeperCore
+    info:
+      path: Config/Info.plist
+      properties:
+        CFBundleName: AppSweeper
+        CFBundleDisplayName: AppSweeper
+        CFBundleIconFile: AppIcon
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSHumanReadableCopyright: "Copyright © 2026 ergonomicdev. Released under the MIT License."
+        LSMinimumSystemVersion: "13.0"
+        LSApplicationCategoryType: public.app-category.utilities
+        NSPrincipalClass: NSApplication
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.appsweeper.AppSweeper
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: NO
+        GENERATE_INFOPLIST_FILE: NO
+  AppSweeperCoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/AppSweeperCoreTests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: AppSweeperCore
+schemes:
+  AppSweeper:
+    build:
+      targets:
+        AppSweeper: all
+    run:
+      config: Debug
+    test:
+      targets: [AppSweeperCoreTests]
